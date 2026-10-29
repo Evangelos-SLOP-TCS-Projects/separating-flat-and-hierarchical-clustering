@@ -1,0 +1,983 @@
+%Planning to understand/simplify/improve. If you are interested, please contact me (Evangelos Kipouridis), I would be more than happy to do that collaboratively.
+%Licensed under CC BY 4.0
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\cU}{\mathcal{U}}
+\newcommand{\cH}{\mathcal{H}}
+\newcommand{\OPT}{\operatorname{OPT}}
+\newcommand{\cost}{\operatorname{cost}}
+\newcommand{\supp}{\operatorname{supp}}
+\newcommand{\lca}{\operatorname{lca}}
+\newcommand{\Est}{\operatorname{Est}}
+\newcommand{\poly}{\operatorname{poly}}
+\newcommand{\polylog}{\operatorname{polylog}}
+\newcommand{\Fp}{F_p}
+
+\title{One-Pass Approximation of Best-Fit Ultrametrics\\
+with Unrestricted Decoding Time}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Let \(V\) be a set of \(n\) labels, let \(E=\binom{V}{2}\), and let
+\(D:E\to\{1,\ldots,2^w-1\}\) be given by a turnstile stream of coordinate
+updates.  We study the problem of finding an ultrametric \(U\) on \(V\) that
+minimizes \(\lVert D-U\rVert_q\).  For each \(q\in\{0,1,2\}\), we give a
+randomized one-pass algorithm that returns a \((1+\varepsilon)\)-approximate
+ultrametric.  If \(w=O(\log n)\), the number of stream updates is polynomial in
+\(n\), and the required failure probability is \(n^{-O(1)}\), then the
+algorithm uses \(\widetilde O(n/\varepsilon^2)\) bits and
+\(n^{O(n)}(1/\varepsilon)^{O(1)}\) decoding time.  For fixed
+\(\varepsilon\), this decoding time is \(n^{O(n)}\).  The algorithm is based
+on a finite family of
+canonical ultrametrics and a linear norm sketch that is simultaneously correct
+for every member of that family.
+
+We also prove a lower bound for reporting the optimum value.  For every fixed
+real number \(p>4\), a randomized one-pass strict-turnstile algorithm that
+returns a sufficiently accurate multiplicative estimate of
+\(\min_U\lVert D-U\rVert_p\) requires
+\(\widetilde\Omega(n^{2-4/p})\) bits.  The post-processing time of the
+algorithm is unrestricted in this lower bound.
+\end{abstract}
+
+\section{Introduction}
+
+An input consists of one number \(D(\{u,v\})\) for every unordered pair of
+distinct labels \(u,v\in V\).  The output is an ultrametric \(U\) on \(V\).
+The error of \(U\) is measured by applying an \(\ell_q\) objective to the
+vector \(D-U\), indexed by the pairs in \(\binom{V}{2}\).  The input vector is
+not stored explicitly.  Instead, its coordinates are changed by a sequence of
+updates, and the algorithm reads that sequence once.
+
+The following theorem is the positive result of this paper.  All terms in its
+statement are defined in Section~\ref{sec:preliminaries}.
+
+\begin{theorem}[Upper bound]\label{thm:upper-intro}
+Fix \(q\in\{0,1,2\}\), \(0<\varepsilon<1\), and \(0<\delta<1/2\).
+There is a randomized one-pass turnstile algorithm that, with probability at
+least \(1-\delta\), returns an ultrametric \(\widehat U\) satisfying
+\[
+  \lVert D-\widehat U\rVert_q
+  \le (1+\varepsilon)\min_{U\in\cU(V)}\lVert D-U\rVert_q.
+\]
+The algorithm uses
+\[
+ O\!\left(
+   \varepsilon^{-2}
+   \bigl(n(\log n+w)+\log(1/\delta)\bigr)
+   \bigl(\log n+w+\log(1/\varepsilon)\bigr)^{O(1)}
+ \right)
+\]
+bits.  Its decoding time is
+\[
+ 2^{O(n(\log n+w))}
+ \bigl(n+1/\varepsilon+\log(1/\delta)\bigr)^{O(1)}.
+\]
+In particular, if \(w=O(\log n)\) and
+\(\delta=n^{-O(1)}\), then the space is
+\(\widetilde O(n/\varepsilon^2)\) bits and the decoding time is
+\(n^{O(n)}(1/\varepsilon)^{O(1)}\).  For fixed \(\varepsilon\), the decoding
+time is \(n^{O(n)}\).
+\end{theorem}
+
+Here and below, \(\cU(V)\) denotes the set of ultrametrics on \(V\).  Theorem
+\ref{thm:upper-intro} allows arbitrary negative intermediate coordinates in
+the stream, subject to the requirement that the final vector is a positive
+\(w\)-bit distance array.  It therefore also applies to strict-turnstile and
+insertion-only streams.
+
+The following theorem is the negative result of this paper.  It concerns an
+algorithm that reports the optimum value; it does not concern an algorithm
+that returns only an ultrametric without reporting its error.
+
+\begin{theorem}[Optimum-value lower bound]\label{thm:lower-intro}
+Fix a real number \(p>4\).  There is a constant
+\(\varepsilon_p>0\), depending only on \(p\), such that the following holds.
+Every randomized one-pass strict-turnstile algorithm that, with probability at
+least \(2/3\), returns a number \(Z\) satisfying
+\[
+ (1-\varepsilon_p)\OPT_p(D)
+ \le Z\le
+ (1+\varepsilon_p)\OPT_p(D),
+ \qquad
+ \OPT_p(D):=\min_{U\in\cU(V)}\lVert D-U\rVert_p,
+\]
+uses \(\widetilde\Omega(n^{2-4/p})\) bits on a family of streams whose
+lengths and update magnitudes are polynomial in \(n\).  The lower bound holds
+without a restriction on the post-processing time.  Every final distance in
+the constructed family has \(O(\log n)\) bits.
+\end{theorem}
+
+For \(p>4\), the exponent \(2-4/p\) is greater than \(1\).  Hence Theorem
+\ref{thm:lower-intro} excludes semi-streaming space for the optimum-value
+problem.  The proof uses the standard lower bound for estimating a high
+frequency moment and an exact identity between that frequency moment and the
+optimum fitting cost of the constructed distance array.
+
+Ultrametric fitting in the semi-streaming model was introduced by Carmel,
+Das, Kipouridis, and Pipis~\cite{CarmelDasKipouridisPipis2025}.  The norm
+sketches used here are standard turnstile sketches; see
+Cormode, Datar, Indyk, and Muthukrishnan~\cite{CormodeDatarIndykMuthukrishnan2003},
+Indyk~\cite{Indyk2006}, and Kane, Nelson, and
+Woodruff~\cite{KaneNelsonWoodruff2010Norms,KaneNelsonWoodruff2010Distinct}.
+
+\section{Definitions and notation}\label{sec:preliminaries}
+
+\subsection{Finite sets and vectors}
+
+For a positive integer \(r\), write
+\([r]:=\{1,\ldots,r\}\).  Let \(V\) be a finite set and let
+\(n:=|V|\ge 2\).  Define
+\[
+ E:=\binom{V}{2}
+   :=\bigl\{\{u,v\}:u,v\in V,\ u\ne v\bigr\},
+ \qquad
+ N:=|E|=\binom n2.
+\]
+A vector indexed by \(E\) is identified with a function from \(E\) to
+\(\R\).  For \(x\in\R^E\), define
+\[
+ \lVert x\rVert_0
+ :=\bigl|\{e\in E:x(e)\ne 0\}\bigr|,
+ \qquad
+ \lVert x\rVert_q
+ :=\left(\sum_{e\in E}|x(e)|^q\right)^{1/q}
+ \quad(q\ge 1).
+\]
+Thus \(\lVert x\rVert_0\) is the number of nonzero coordinates of \(x\).
+The notation \(\lVert\cdot\rVert_0\) does not denote a norm.
+
+All logarithms have base \(2\).  The notation \(f(n)=\widetilde O(g(n))\)
+means that there are constants \(c,C>0\) such that
+\(f(n)\le Cg(n)(\log n)^c\) for all sufficiently large \(n\).  The notation
+\(f(n)=\widetilde\Omega(g(n))\) means that there are constants \(c,C>0\)
+such that \(f(n)\ge Cg(n)/(\log n)^c\) for all sufficiently large \(n\) in
+the stated family of input sizes.
+For positive real numbers \(z_1,\ldots,z_k\), the notation
+\(\polylog(z_1,\ldots,z_k)\) denotes
+\[
+ \left(1+\sum_{i=1}^k\log(1+z_i)\right)^c
+\]
+for an absolute constant \(c>0\).  The value of \(c\) may differ between
+occurrences of the notation.
+
+\subsection{Ultrametrics and dendrograms}
+
+\begin{definition}[Ultrametric]
+An ultrametric on \(V\) is a function \(U:E\to\R_{\ge 0}\) such that, for
+every three distinct labels \(a,b,c\in V\),
+\[
+ U(\{a,c\})
+ \le
+ \max\bigl\{U(\{a,b\}),U(\{b,c\})\bigr\}.
+\]
+The set of ultrametrics on \(V\) is denoted by \(\cU(V)\).
+\end{definition}
+
+The value zero is allowed in this definition.  Allowing zero does not change
+the optimum for the positive input arrays considered in this paper.
+
+\begin{definition}[Rooted tree terminology]
+A rooted tree is a finite connected acyclic graph with a distinguished vertex,
+called its root.  If \(x\) and \(y\) are vertices of a rooted tree, then \(x\)
+is an ancestor of \(y\) if \(x\) lies on the unique path from the root to
+\(y\).  A child of \(x\) is a neighbor \(y\) of \(x\) for which \(x\) is the
+ancestor of \(y\).  A leaf is a vertex with no child.  An internal vertex is a
+vertex that is not a leaf.  The least common ancestor of two vertices \(u,v\)
+is the common ancestor of \(u\) and \(v\) that has no strict descendant that
+is also a common ancestor; it is denoted by \(\lca_T(u,v)\).
+\end{definition}
+
+\begin{definition}[Dendrogram]
+A dendrogram on \(V\) is a pair \((T,h)\) with the following properties.
+The object \(T\) is a rooted tree whose leaves are in bijection with \(V\),
+every internal vertex of \(T\) has at least two children, and
+\(h:I(T)\to\R_{\ge0}\) is a function on the set \(I(T)\) of internal vertices
+such that
+\[
+ h(x)\ge h(y)
+ \quad\text{whenever \(x\) is an ancestor of \(y\).}
+\]
+The ultrametric represented by \((T,h)\) is the function
+\(U_{T,h}:E\to\R_{\ge0}\) defined by
+\[
+ U_{T,h}(\{u,v\}):=h(\lca_T(u,v)).
+\]
+\end{definition}
+
+\begin{lemma}[Dendrogram representation]\label{lem:dendrogram-representation}
+Every dendrogram on \(V\) represents an ultrametric on \(V\).  Every
+ultrametric on \(V\) is represented by a dendrogram with at most \(n-1\)
+internal vertices.
+\end{lemma}
+
+\begin{proof}
+Let \((T,h)\) be a dendrogram and let \(a,b,c\in V\) be distinct.  Among the
+three least common ancestors of the three pairs, one is an ancestor of the
+other two.  The height of that ancestor is the maximum of the three pair
+heights and occurs for at least two of the three pairs.  Therefore every one
+of the three pair heights is at most the maximum of the other two.  This is
+the ultrametric inequality.
+
+Conversely, let \(U\) be an ultrametric.  For \(t\ge0\), define
+\[
+ u\sim_t v
+ \quad\Longleftrightarrow\quad
+ u=v\text{ or }U(\{u,v\})\le t.
+\]
+The ultrametric inequality implies that \(\sim_t\) is transitive.  It is also
+reflexive and symmetric, so it is an equivalence relation.  If \(s\le t\),
+then every equivalence class of \(\sim_s\) is contained in an equivalence
+class of \(\sim_t\).  Take all distinct equivalence classes obtained when
+\(t\) ranges over \(\{U(e):e\in E\}\), and add every singleton set.  Ordered
+by inclusion, these sets form a laminar family containing \(V\).  Its Hasse
+diagram, directed from \(V\) toward the singleton sets, is a rooted tree with
+leaf set \(V\).  Give each non-singleton set \(C\) the smallest value \(t\)
+for which \(C\) is an equivalence class of \(\sim_t\).  These values are
+nonincreasing from an ancestor to a descendant.  For distinct \(u,v\in V\),
+the smallest set in the family containing both labels has height
+\(U(\{u,v\})\).  Hence the resulting dendrogram represents \(U\).
+
+Each internal vertex has at least two children.  A rooted tree with \(n\)
+leaves and at least two children at every internal vertex has at most \(n-1\)
+internal vertices.
+\end{proof}
+
+\subsection{The fitting objectives}
+
+Fix a positive integer \(w\) and define \(B:=2^w-1\).  A distance array on
+\(V\) is a function
+\[
+ D:E\to[B].
+\]
+No triangle inequality is imposed on \(D\).  For \(q\in\{0,1,2\}\) and
+\(U\in\cU(V)\), define
+\[
+ \cost_q(D,U):=\lVert D-U\rVert_q,
+ \qquad
+ \OPT_q(D):=\min_{U\in\cU(V)}\cost_q(D,U).
+\]
+For a real number \(p\ge1\), the same notation is used with the
+\(\ell_p\) norm:
+\[
+ \cost_p(D,U):=
+ \left(\sum_{e\in E}|D(e)-U(e)|^p\right)^{1/p},
+ \qquad
+ \OPT_p(D):=\min_{U\in\cU(V)}\cost_p(D,U).
+\]
+
+\subsection{Streaming models}
+
+\begin{definition}[Turnstile stream]
+A turnstile stream for a distance array is a finite sequence
+\[
+ (e_1,\Delta_1),\ldots,(e_L,\Delta_L)
+ \quad\text{with}\quad
+ e_t\in E,
+ \quad
+ \Delta_t\in\Z.
+\]
+The vector after update \(t\) is \(D^{(t)}\in\Z^E\), defined by
+\[
+ D^{(0)}(e):=0,
+ \qquad
+ D^{(t)}(e):=D^{(t-1)}(e)+
+ \begin{cases}
+ \Delta_t,&e=e_t,\\
+ 0,&e\ne e_t.
+ \end{cases}
+\]
+The final vector is \(D:=D^{(L)}\).  A strict-turnstile stream is a turnstile
+stream satisfying \(D^{(t)}(e)\ge0\) for every \(t\in[L]\) and \(e\in E\).
+An insertion-only stream is a strict-turnstile stream satisfying
+\(\Delta_t\ge0\) for every \(t\in[L]\).
+\end{definition}
+
+The upper bound assumes that \(D(e)\in[B]\) for every \(e\in E\), that
+\(L\le n^{O(1)}\), and that \(|\Delta_t|\le 2^{O(w)}\).  The intermediate
+coordinates of a turnstile stream may be negative.  The lower bound uses only
+strict-turnstile streams.
+
+A one-pass streaming algorithm reads the updates in their given order and
+does not read an update a second time.  Its space is the maximum number of bits
+in its internal state during the stream and its post-processing.  Its decoding
+time is the number of elementary arithmetic and comparison operations used
+after the final update.  A semi-streaming algorithm uses
+\(O(n\polylog n)\) bits.  The input stream is fixed independently of the
+private random bits used by the algorithm.
+An integer parameter is polynomially bounded in \(n\) if it is at most
+\(n^c\) for a constant \(c>0\).
+
+\section{Linear norm sketches}\label{sec:sketches}
+
+The proof of the upper bound uses a standard streaming primitive.  We state
+the primitive in the form required here.
+
+A randomized linear sketch of a vector \(x\) consists of a random linear map
+\(S\) and the value \(Sx\).  Linearity means
+\(S(ax+by)=aSx+bSy\) whenever the displayed operations are defined.
+
+\begin{lemma}[Linear sketches for \(q\in\{0,1,2\}\)]
+\label{lem:norm-sketch}
+Let \(d,M,L\) be positive integers, let \(q\in\{0,1,2\}\), and let
+\(0<\eta<1/2\) and \(0<\rho<1/2\).  There is a randomized linear sketch
+\(S_q\) and a decoder \(\Est_q\) with the following properties.
+
+For each fixed vector \(x\in\mathbb{Q}^d\) whose coordinates have numerators
+and denominators of absolute value at most \(M\),
+\[
+ \Pr\left[
+  (1-\eta)\lVert x\rVert_q
+  \le \Est_q(S_qx)
+  \le (1+\eta)\lVert x\rVert_q
+ \right]
+ \ge 1-\rho.
+\]
+For \(q=0\), the expression \(\lVert x\rVert_0\) has the meaning given in
+Section~\ref{sec:preliminaries}.  If \(x=0\), then
+\(\Est_q(S_qx)=0\) with probability \(1\).
+
+The sketch is linear: whenever \(x,y\in\mathbb{Q}^d\) and
+\(a,b\in\mathbb{Q}\), the sketch of \(ax+by\) can be computed from the
+sketches of \(x\) and \(y\).  A stream of \(L\) coordinate updates to an
+integer vector can be processed in one pass.  The number of stored bits is
+\[
+ O\!\left(
+  \eta^{-2}\log(1/\rho)
+  \polylog(d,M,L,1/\eta)
+ \right).
+\]
+Given a rational query vector \(y\) of the stated coordinate size, \(S_qy\)
+can be computed from the random seed describing \(S_q\), without access to the
+stream.
+\end{lemma}
+
+\begin{proof}
+For \(q=2\), one may use the sketch of Alon, Matias, and
+Szegedy~\cite{AlonMatiasSzegedy1999}.  One row stores the linear measurement
+\[
+ Z:=\sum_{i=1}^d\sigma_i x_i,
+\]
+and the decoder uses \(Z^2\), where the signs
+\(\sigma_i\in\{-1,1\}\) are uniform and four-wise independent, meaning that
+every subfamily of at most four signs is mutually independent.  The
+expectation of \(Z^2\) is \(\lVert x\rVert_2^2\), and its variance is at most
+\(2\lVert x\rVert_2^4\).  Averaging \(O(\eta^{-2})\) independent copies gives
+constant failure probability by Chebyshev's inequality.  Taking the median of
+\(O(\log(1/\rho))\) independent averages gives failure probability at most
+\(\rho\).  Taking a square root gives the stated estimate of
+\(\lVert x\rVert_2\), after changing the constant in the accuracy parameter.
+
+For \(q=1\), one may use independent Cauchy projections as in
+Indyk~\cite{Indyk2006}.  If \(C_1,\ldots,C_d\) are independent standard
+Cauchy random variables, where a standard Cauchy random variable has density
+\[
+ f(t):=\frac{1}{\pi(1+t^2)}
+ \qquad(t\in\R),
+\]
+then
+\[
+ \sum_{i=1}^d x_iC_i
+ \quad\text{and}\quad
+ \lVert x\rVert_1 C_1
+\]
+have the same distribution.  The median of \(|C_1|\) is \(1\), and the
+density of \(|C_1|\) is positive and continuous in a neighborhood of \(1\).
+The Chernoff bound for the empirical median therefore gives relative error
+\(\eta\) from \(O(\eta^{-2}\log(1/\rho))\) independent projections.
+
+For \(q=0\), use a turnstile Hamming-norm sketch; such sketches are given by
+Cormode, Datar, Indyk, and
+Muthukrishnan~\cite{CormodeDatarIndykMuthukrishnan2003} and by Kane, Nelson,
+and Woodruff~\cite{KaneNelsonWoodruff2010Distinct}.  These sketches consist of
+linear measurements and estimate the number of nonzero coordinates.  If the
+coordinates are rational, choose a prime larger than every possible nonzero
+numerator and every denominator, and interpret every coordinate in the
+corresponding finite field.  This preserves whether each coordinate is zero.
+
+In all three cases, each measurement is a linear function of \(x\).  Hence a
+coordinate update changes the stored measurements without storing \(x\).
+Independent repetition gives the factor \(\log(1/\rho)\).  Standard bounded
+independence and finite-precision implementations use the stated number of
+bits for vectors and streams with the stated magnitude bounds; see
+\cite{Indyk2006,KaneNelsonWoodruff2010Norms,KaneNelsonWoodruff2010Distinct}.
+\end{proof}
+
+\section{Canonical ultrametrics}\label{sec:canonical}
+
+This section constructs a finite family that contains an optimum solution for
+each of the three objectives.
+
+Fix a rooted tree \(T\) whose leaves are \(V\) and whose internal vertices
+have at least two children.  For each internal vertex \(v\in I(T)\), define
+\[
+ P_v:=\bigl\{\{a,b\}\in E:\lca_T(a,b)=v\bigr\}.
+\]
+The sets \(P_v\), for \(v\in I(T)\), form a partition of \(E\), and each
+\(P_v\) is nonempty.
+
+\begin{lemma}[Existence of an optimum on a fixed tree]
+\label{lem:existence-fixed-tree}
+For \(q=0\) and for every real \(q\ge1\), every distance array
+\(D:E\to[B]\), and every rooted tree \(T\) considered above, there is a
+feasible height function \(h\) that minimizes
+\(\cost_q(D,U_{T,h})\).
+\end{lemma}
+
+\begin{proof}
+For \(q=0\), every feasible height function has a cost in the finite set
+\(\{0,\ldots,N\}\).  The nonempty set of attained costs therefore has a
+smallest member.
+
+For every real \(q\ge1\), the feasible height functions form a closed subset
+of \(\R_{\ge0}^{I(T)}\), and the objective is a continuous function of the
+heights.  Because every \(P_v\) is nonempty, the objective tends to infinity
+when the largest height tends to infinity.
+Every nonempty sublevel set is therefore closed and bounded, hence compact.
+A continuous function on a nonempty compact set attains its minimum.
+\end{proof}
+
+\begin{lemma}[Canonical heights]\label{lem:canonical-heights}
+Let \(D:E\to[B]\), and fix a rooted tree \(T\) as above.
+
+\begin{enumerate}
+\item There is a height function minimizing
+\(\cost_0(D,U_{T,h})\) whose values belong to
+\[
+ \cH_0(D):=\{D(e):e\in E\}.
+\]
+
+\item There is a height function minimizing
+\(\cost_1(D,U_{T,h})\) whose values belong to
+\[
+ \cH_1(D):=\{D(e):e\in E\}.
+\]
+
+\item There is a height function minimizing
+\(\cost_2(D,U_{T,h})\) such that every height is the arithmetic mean of a
+nonempty multiset of entries of \(D\).  In particular, every height belongs to
+\[
+ \cH_2(B,N):=
+ \left\{\frac{s}{k}:
+  1\le k\le N,
+  k\le s\le kB,
+  s\in\Z
+ \right\}.
+\]
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+For the first claim, let \(h\) be any feasible height function.  Define
+\(\phi:\R_{\ge0}\to\cH_0(D)\) by
+\[
+ \phi(t):=
+ \begin{cases}
+  \min\cH_0(D),&t<\min\cH_0(D),\\
+  \max\{s\in\cH_0(D):s\le t\},&t\ge\min\cH_0(D).
+ \end{cases}
+\]
+The function \(\phi\) is nondecreasing and satisfies \(\phi(s)=s\) for every
+\(s\in\cH_0(D)\).  Therefore \(\phi\circ h\) is feasible.  If
+\(U_{T,h}(e)=D(e)\), then
+\(U_{T,\phi\circ h}(e)=D(e)\).  Thus every agreement is preserved, and
+\[
+ \cost_0(D,U_{T,\phi\circ h})
+ \le \cost_0(D,U_{T,h}).
+\]
+Applying this transformation to an optimum \(h\) proves the first claim.
+
+For the remaining claims, connect two internal vertices by an edge when one
+is the parent of the other.  For a feasible height function \(h\), an equality
+block is a connected component of the graph containing precisely those
+parent--child edges \(xy\) for which \(h(x)=h(y)\).  All vertices in an
+equality block \(C\) have one common height, denoted by \(t_C\).  Define
+\[
+ P_C:=\bigcup_{v\in C}P_v.
+\]
+Because adjacent equality blocks have different heights, the value \(t_C\)
+can be increased or decreased by a sufficiently small positive amount while
+all other block heights remain fixed, unless \(t_C=0\).  The case \(t_C=0\)
+cannot occur in an optimum for the \(\ell_1\) or \(\ell_2\) objective, because
+all entries of \(D\) are positive and a sufficiently small increase would
+strictly decrease the objective.
+
+For the \(\ell_2\) objective, minimizing the norm is equivalent to minimizing
+its square.  The terms depending on \(t_C\) are
+\[
+ f_C(t):=\sum_{e\in P_C}(D(e)-t)^2.
+\]
+Since \(t_C\) is an interior local minimizer,
+\[
+ 0=f_C'(t_C)=2\sum_{e\in P_C}(t_C-D(e)).
+\]
+Consequently,
+\[
+ t_C=\frac{1}{|P_C|}\sum_{e\in P_C}D(e).
+\]
+The denominator is between \(1\) and \(N\), and the numerator is an integer
+between \(|P_C|\) and \(|P_C|B\).  This proves the third claim.
+
+For the \(\ell_1\) objective, choose among all optimum height functions one
+with the smallest number of equality blocks; subject to this choice, choose
+one with the largest number of canonical equality blocks, where an equality
+block \(C\) is called canonical when \(t_C\in\cH_1(D)\).  These choices are
+possible by Lemma~\ref{lem:existence-fixed-tree}.  Suppose that a block \(C\)
+has height
+\(t_C\notin\cH_1(D)\).  The terms depending on \(t_C\) are
+\[
+ g_C(t):=\sum_{e\in P_C}|D(e)-t|.
+\]
+The function \(g_C\) is linear on every open interval containing no value
+from \(\cH_1(D)\).  Since \(t_C\) is an interior local minimizer, the slope on
+the interval containing \(t_C\) is zero.  Choose a direction from \(t_C\)
+toward a closest value of \(\cH_1(D)\).  Move \(t_C\) in this direction,
+without changing any other block height, until either \(t_C\) reaches that
+value or \(t_C\) reaches the height of an adjacent equality block.
+The objective does not change during this movement.  In the first case, the
+number of canonical blocks increases.  In the second case, two equality
+blocks merge.  Both conclusions contradict the choice of \(h\).  Hence every
+block height belongs to \(\cH_1(D)\), which proves the second claim.
+\end{proof}
+
+The families in Lemma~\ref{lem:canonical-heights} that depend on \(D\) are
+contained in the universal set \([B]\).  Define
+\[
+ \cH_0:=\cH_1:=[B],
+ \qquad
+ \cH_2:=\cH_2(B,N).
+\]
+For \(q\in\{0,1,2\}\), let \(\mathcal C_q(V,B)\) be the set of ultrametrics
+that have a dendrogram representation with at most \(n-1\) internal vertices
+and all internal heights in \(\cH_q\).
+
+\begin{lemma}[Number of candidates]\label{lem:candidate-count}
+For every \(q\in\{0,1,2\}\),
+\[
+ |\mathcal C_q(V,B)|
+ \le 2^{O(n(\log n+w))}.
+\]
+Moreover, \(\mathcal C_q(V,B)\) contains an ultrametric attaining
+\(\OPT_q(D)\).
+\end{lemma}
+
+\begin{proof}
+Every rooted tree under consideration has \(n\) labelled leaves and at most
+\(n-1\) internal vertices.  After assigning distinct auxiliary labels to the
+internal vertices, such a tree can be described by at most \(2n-2\) parent
+pointers, each taking at most \(2n-1\) values.  Therefore the number of rooted
+tree topologies is at most
+\[
+ (2n)^{2n}=2^{O(n\log n)}.
+\]
+The auxiliary labels can only overcount the number of trees.
+
+For \(q\in\{0,1\}\), \( |\cH_q|=B<2^w\).  For \(q=2\),
+\[
+ |\cH_2|
+ \le\sum_{k=1}^N kB
+ \le BN^2.
+\]
+For each topology, at most \(n-1\) heights are selected.  Ignoring the
+monotonicity constraint can only increase the count, so
+\[
+ |\mathcal C_q(V,B)|
+ \le (2n)^{2n}|\cH_q|^{n-1}
+ \le 2^{O(n(\log n+w))}.
+\]
+The existence of an optimum member follows from the dendrogram
+representation of ultrametrics and Lemma~\ref{lem:canonical-heights}.
+\end{proof}
+
+\section{One-pass upper bounds}\label{sec:upper}
+
+We now prove Theorem~\ref{thm:upper-intro}.
+
+\begin{proof}[Proof of Theorem~\ref{thm:upper-intro}]
+Fix \(q\in\{0,1,2\}\) and let
+\[
+ K:=|\mathcal C_q(V,B)|.
+\]
+Set
+\[
+ \eta:=\frac{\varepsilon}{2+\varepsilon}
+ \quad\text{and}\quad
+ \rho:=\frac{\delta}{K}.
+\]
+Choose the sketch \(S_q\) of Lemma~\ref{lem:norm-sketch} with parameters
+\(\eta,\rho\).  During the stream, maintain only \(S_qD^{(t)}\).  Linearity
+allows every update to be applied directly to this state.
+
+The sketch dimension is \(d=N\).  For \(q\in\{0,1\}\), every candidate
+coordinate is an integer in \([B]\).  For \(q=2\), every candidate coordinate
+has a numerator of absolute value at most \(NB\) and a denominator at most
+\(N\).  Thus every coordinate of \(D-U\) has a numerator and denominator of
+absolute value at most \(2NB\), and Lemma~\ref{lem:norm-sketch} applies with
+\(M=2NB\).  In particular, each candidate sketch can be evaluated using the
+bit complexity included in that lemma.
+
+After the final update, enumerate all candidates
+\(U\in\mathcal C_q(V,B)\).  For each candidate, compute \(S_qU\) from the
+description of \(U\) and the random seed describing \(S_q\), and define
+\[
+ \widehat c(U):=\Est_q(S_qD-S_qU)
+               =\Est_q(S_q(D-U)).
+\]
+Return a candidate \(\widehat U\) minimizing \(\widehat c(U)\).  Ties are
+resolved according to any fixed ordering of the finite candidate family.
+
+For each fixed \(U\in\mathcal C_q(V,B)\), Lemma
+\ref{lem:norm-sketch} gives
+\[
+ \Pr\left[
+ (1-\eta)\cost_q(D,U)
+ \le\widehat c(U)\le
+ (1+\eta)\cost_q(D,U)
+ \right]\ge1-\rho.
+\]
+The candidate family is fixed independently of the random sketch.  The union
+bound therefore implies that, with probability at least
+\(1-K\rho=1-\delta\), the displayed inequalities hold simultaneously for
+every candidate.
+
+Condition on this simultaneous event.  By Lemma
+\ref{lem:candidate-count}, there is a candidate \(U^\star\) satisfying
+\(\cost_q(D,U^\star)=\OPT_q(D)\).  Hence
+\begin{align*}
+ (1-\eta)\cost_q(D,\widehat U)
+ &\le \widehat c(\widehat U)\\
+ &\le \widehat c(U^\star)\\
+ &\le (1+\eta)\cost_q(D,U^\star).
+\end{align*}
+Since
+\[
+ \frac{1+\eta}{1-\eta}=1+\varepsilon,
+\]
+the required approximation follows.  If \(\OPT_q(D)=0\), then
+\(S_q(D-U^\star)=0\), so its estimate is exactly zero.  Simultaneous
+correctness then implies \(\cost_q(D,\widehat U)=0\).
+
+By Lemma~\ref{lem:candidate-count},
+\[
+ \log(1/\rho)=\log K+\log(1/\delta)
+ =O\bigl(n(\log n+w)+\log(1/\delta)\bigr).
+\]
+Substitution into Lemma~\ref{lem:norm-sketch} proves the stated space bound.
+Every candidate has at most \(n-1\) internal heights, each represented using
+\(O(w+\log n)\) bits.  Its vector of pair values and its sketch can be
+computed in polynomial time.  Enumerating the candidate family therefore
+takes
+\[
+ 2^{O(n(\log n+w))}
+ \bigl(n+1/\varepsilon+\log(1/\delta)\bigr)^{O(1)}
+\]
+time and does not require the candidates to be stored simultaneously.  This
+proves the theorem.
+\end{proof}
+
+\section{A strict-turnstile lower bound for reporting the optimum value}
+\label{sec:lower}
+
+We reduce from frequency-moment estimation.  For a positive integer \(d\), a
+frequency vector is a vector \(x\in\Z_{\ge0}^d\).  It is presented by an
+insertion-only stream whose update \(i\in[d]\) replaces \(x_i\) by
+\(x_i+1\).  For a fixed real number \(p>2\), define
+\[
+ \Fp(x):=\sum_{i=1}^d x_i^p.
+\]
+We use the following standard lower bound; see Bar-Yossef, Jayram, Kumar, and
+Sivakumar~\cite{BarYossefJayramKumarSivakumar2004} and
+Ganguly~\cite{Ganguly2011}.
+
+\begin{theorem}[High-frequency-moment lower bound]
+\label{thm:fp-lower}
+Fix a real number \(p>2\).  There is a constant \(\gamma_p>0\) such that every
+randomized one-pass algorithm that, with probability at least \(2/3\), returns
+a number \(Y\) satisfying
+\[
+ (1-\gamma_p)\Fp(x)\le Y\le(1+\gamma_p)\Fp(x)
+\]
+uses \(\widetilde\Omega(d^{1-2/p})\) bits.  The lower bound holds for
+insertion-only streams of polynomial length, and the resulting coordinates
+of \(x\) are bounded by a polynomial in \(d\).
+\end{theorem}
+
+We next define the distance array used in the reduction.  Let \(m\) be a
+positive integer and identify the \(d=m^2\) coordinates of the frequency
+vector with ordered pairs \((i,j)\in[m]\times[m]\).  Let \(B_x\) be a known
+polynomial upper bound on every coordinate \(x_{ij}\) in the hard family from
+Theorem~\ref{thm:fp-lower}.  Define three pairwise disjoint sets
+\[
+ A^+:=\{a_1^+,\ldots,a_m^+\},
+ \qquad
+ A^-:=\{a_1^-,\ldots,a_m^-\},
+ \qquad
+ C:=\{c_1,\ldots,c_m\},
+\]
+and put \(A:=A^+\cup A^-\) and \(V:=A\cup C\).  Thus \(|V|=3m\).  Define
+\[
+ H:=16B_x\left\lceil m^{2/p}\right\rceil.
+\]
+Choose
+\[
+ w_x:=\left\lceil\log(H+B_x+1)\right\rceil.
+\]
+Then every value defined below belongs to \([2^{w_x}-1]\), so the resulting
+function is a distance array according to
+Section~\ref{sec:preliminaries}.
+The distance array \(D_x\) on \(V\) is defined by
+\begin{align*}
+ D_x(\{u,v\})&:=1
+ &&\text{if \(u,v\in A\) or \(u,v\in C\)},\\
+ D_x(\{a_i^+,c_j\})&:=H+x_{ij}
+ &&\text{if \(i,j\in[m]\)},\\
+ D_x(\{a_i^-,c_j\})&:=H-x_{ij}
+ &&\text{if \(i,j\in[m]\)}.
+\end{align*}
+
+\begin{lemma}[Exact optimum of the reduction]\label{lem:exact-reduction}
+For every \(x\in\{0,\ldots,B_x\}^{m\times m}\) and every real \(p\ge1\),
+\[
+ \OPT_p(D_x)^p=2\Fp(x).
+\]
+\end{lemma}
+
+\begin{proof}
+Define an ultrametric \(U_0\) by
+\[
+ U_0(\{u,v\}):=
+ \begin{cases}
+ 1,&u,v\in A\text{ or }u,v\in C,\\
+ H,&u\in A\text{ and }v\in C.
+ \end{cases}
+\]
+The two sets \(A\) and \(C\) are the two children of the root in a dendrogram
+for \(U_0\), so \(U_0\) is an ultrametric.  Its \(p\)-th power cost is
+\[
+ \sum_{e\in E}|D_x(e)-U_0(e)|^p
+ =2\sum_{i,j=1}^m x_{ij}^p
+ =2\Fp(x).
+\]
+In particular,
+\[
+ \OPT_p(D_x)^p\le2m^2B_x^p.
+\]
+
+Let \(U\) be an optimum ultrametric and put \(\tau:=H/2\).  Define a relation
+on \(V\) by
+\[
+ u\sim_U v
+ \quad\Longleftrightarrow\quad
+ u=v\text{ or }U(\{u,v\})<\tau.
+\]
+The ultrametric inequality implies that \(\sim_U\) is transitive; hence it is
+an equivalence relation.  Suppose that its equivalence classes are not
+exactly \(A\) and \(C\).  Then one of the following two events occurs.
+
+First, two vertices in \(A\), or two vertices in \(C\), lie in different
+equivalence classes.  For their pair \(e\),
+\[
+ |D_x(e)-U(e)|\ge\tau-1\ge H/4.
+\]
+Second, a vertex of \(A\) and a vertex of \(C\) lie in the same equivalence
+class.  For their pair \(e\), using \(H\ge4B_x\),
+\[
+ |D_x(e)-U(e)|
+ > H-B_x-\tau
+ \ge H/4.
+\]
+In either case, the \(p\)-th power cost of \(U\) is at least \((H/4)^p\).
+The definition of \(H\) gives
+\[
+ (H/4)^p
+ \ge 4^p m^2B_x^p
+ >2m^2B_x^p,
+\]
+contradicting the upper bound supplied by \(U_0\).  Therefore the
+equivalence classes of \(\sim_U\) are exactly \(A\) and \(C\).
+
+It follows that all cross-pair values \(U(\{a,c\})\), with \(a\in A\) and
+\(c\in C\), are equal.  To verify this statement, let \(a,a'\in A\) and
+\(c\in C\).  We have
+\[
+ U(\{a,a'\})<\tau
+ \le\min\{U(\{a,c\}),U(\{a',c\})\}.
+\]
+If the two cross-pair values were unequal, applying the ultrametric inequality
+to the larger one would give a contradiction.  Thus they are equal.  The
+same argument with two vertices of \(C\) proves the statement for all cross
+pairs.  Denote their common value by \(h\), and write \(h=H+t\).
+
+The contribution of the cross pairs to the \(p\)-th power cost is
+\[
+ \sum_{i,j=1}^m
+ \left(|x_{ij}-t|^p+|x_{ij}+t|^p\right).
+\]
+For every \(z\ge0\), the function
+\[
+ g_z(t):=|z-t|^p+|z+t|^p
+\]
+is convex and even.  Convexity and evenness imply
+\[
+ g_z(0)
+ \le\frac{g_z(t)+g_z(-t)}2
+ =g_z(t).
+\]
+Consequently, the cross-pair contribution is at least
+\(2\sum_{i,j}x_{ij}^p=2\Fp(x)\).  The contribution of the remaining pairs is
+nonnegative.  Together with the cost of \(U_0\), this proves
+\(\OPT_p(D_x)^p=2\Fp(x)\).
+\end{proof}
+
+\begin{lemma}[Strict-turnstile realization]\label{lem:strict-realization}
+The transformation from an insertion-only stream for \(x\) to a stream for
+\(D_x\) is computable online, uses a strict-turnstile stream, and produces
+polynomially many updates of polynomial magnitude.
+\end{lemma}
+
+\begin{proof}
+First insert \(1\) into every coordinate corresponding to a pair contained in
+\(A\) or contained in \(C\).  Insert \(H\) into every coordinate
+corresponding to a cross pair.  Whenever the frequency stream increments
+\(x_{ij}\), add \(1\) to the coordinate \(\{a_i^+,c_j\}\) and add \(-1\) to
+the coordinate \(\{a_i^-,c_j\}\).
+
+At every time, \(0\le x_{ij}\le B_x<H\).  Hence every coordinate
+\(H-x_{ij}\) remains positive.  All remaining coordinates are also
+nonnegative.  The transformed stream is therefore strict turnstile.  It has
+\(O(m^2)\) initialization updates and two updates for each update of the
+frequency stream.  Since \(B_x\) and the frequency-stream length are
+polynomial in \(m\), the transformed stream has polynomial length and
+polynomial update magnitude.  Moreover,
+\[
+ 1\le D_x(e)\le H+B_x
+\]
+for every final coordinate.  Hence every final coordinate has
+\(O(\log m)=O(\log n)\) bits.
+\end{proof}
+
+\begin{proof}[Proof of Theorem~\ref{thm:lower-intro}]
+Fix \(p>4\), and suppose that an algorithm \(\mathcal A\) satisfies the
+conclusion required in Theorem~\ref{thm:lower-intro}.  Given an
+insertion-only stream for \(x\in\Z_{\ge0}^{m^2}\), use Lemma
+\ref{lem:strict-realization} to feed the corresponding strict-turnstile stream
+for \(D_x\) to \(\mathcal A\).  Let \(Z\) be the value returned by
+\(\mathcal A\), and return
+\[
+ Y:=\frac{Z^p}{2}
+\]
+as an estimate of \(\Fp(x)\).
+
+By Lemma~\ref{lem:exact-reduction}, on every successful execution of
+\(\mathcal A\),
+\[
+ (1-\varepsilon_p)^p\Fp(x)
+ \le Y\le
+ (1+\varepsilon_p)^p\Fp(x).
+\]
+Choose \(\varepsilon_p>0\) sufficiently small that
+\[
+ (1-\varepsilon_p)^p\ge1-\gamma_p
+ \quad\text{and}\quad
+ (1+\varepsilon_p)^p\le1+\gamma_p,
+\]
+where \(\gamma_p\) is the constant in Theorem~\ref{thm:fp-lower}.  The
+resulting procedure is an \(F_p\)-estimation algorithm with success
+probability at least \(2/3\).  Theorem~\ref{thm:fp-lower}, with \(d=m^2\),
+therefore gives the space lower bound
+\[
+ \widetilde\Omega\bigl((m^2)^{1-2/p}\bigr)
+ =\widetilde\Omega(m^{2-4/p})
+ =\widetilde\Omega(n^{2-4/p}),
+\]
+because \(n=3m\).  Lemma~\ref{lem:strict-realization} proves the asserted
+stream restrictions.  The reduction does not restrict the post-processing
+time, which completes the proof.
+\end{proof}
+
+\section{Concluding statement}
+
+For \(q\in\{0,1,2\}\), a finite canonical family and a high-confidence linear
+norm sketch give a one-pass \((1+\varepsilon)\)-approximation in
+\(\widetilde O(n/\varepsilon^2)\) bits when the input numbers have
+\(O(\log n)\) bits.  For every fixed \(p>4\), reporting a sufficiently accurate
+multiplicative estimate of the optimum \(\ell_p\) fitting value in the
+strict-turnstile model requires
+\(\widetilde\Omega(n^{2-4/p})\) bits.
+
+\small
+\begin{thebibliography}{99}
+
+\bibitem{AlonMatiasSzegedy1999}
+N.~Alon, Y.~Matias, and M.~Szegedy.
+\newblock The space complexity of approximating the frequency moments.
+\newblock \emph{Journal of Computer and System Sciences}, 58(1):137--147,
+1999.
+
+\bibitem{BarYossefJayramKumarSivakumar2004}
+Z.~Bar-Yossef, T.~S. Jayram, R.~Kumar, and D.~Sivakumar.
+\newblock An information statistics approach to data stream and communication
+complexity.
+\newblock \emph{Journal of Computer and System Sciences}, 68(4):702--732,
+2004.
+
+\bibitem{CarmelDasKipouridisPipis2025}
+A.~Carmel, D.~Das, E.~Kipouridis, and E.~Pipis.
+\newblock Fitting tree metrics and ultrametrics in data streams.
+\newblock In \emph{52nd International Colloquium on Automata, Languages, and
+Programming (ICALP 2025)}, volume 334 of LIPIcs, pages 42:1--42:21, 2025.
+
+\bibitem{CormodeDatarIndykMuthukrishnan2003}
+G.~Cormode, M.~Datar, P.~Indyk, and S.~Muthukrishnan.
+\newblock Comparing data streams using Hamming norms.
+\newblock \emph{IEEE Transactions on Knowledge and Data Engineering},
+15(3):529--541, 2003.
+
+\bibitem{Ganguly2011}
+S.~Ganguly.
+\newblock A lower bound for estimating high moments of a data stream.
+\newblock arXiv:1201.0253, 2011.
+
+\bibitem{Indyk2006}
+P.~Indyk.
+\newblock Stable distributions, pseudorandom generators, embeddings, and data
+stream computation.
+\newblock \emph{Journal of the ACM}, 53(3):307--323, 2006.
+
+\bibitem{KaneNelsonWoodruff2010Distinct}
+D.~M. Kane, J.~Nelson, and D.~P. Woodruff.
+\newblock An optimal algorithm for the distinct elements problem.
+\newblock In \emph{Proceedings of the 29th ACM SIGMOD-SIGACT-SIGART Symposium
+on Principles of Database Systems (PODS 2010)}, pages 41--52, 2010.
+
+\bibitem{KaneNelsonWoodruff2010Norms}
+D.~M. Kane, J.~Nelson, and D.~P. Woodruff.
+\newblock On the exact space complexity of sketching and streaming small
+norms.
+\newblock In \emph{Proceedings of the 21st Annual ACM--SIAM Symposium on
+Discrete Algorithms (SODA 2010)}, pages 1161--1178, 2010.
+
+\end{thebibliography}
+
+\end{document}
